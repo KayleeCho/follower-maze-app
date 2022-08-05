@@ -24,7 +24,7 @@ class ClientServer(userHandler: UserRegistry) extends Runnable {
         val reader = new BufferedReader(new InputStreamReader(userSocket.getInputStream()))
         Option(reader.readLine()).foreach { userId =>
           if( userId != null) {
-            userHandler.addUser(userId.toLong, userSocket)
+            userHandler.add(userId.toLong, userSocket)
             System.out.println( "user Id" + userId + "connected" + " (" + userHandler.numberOfUsersOnline + " total)")
           }
 

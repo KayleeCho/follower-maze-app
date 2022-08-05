@@ -19,14 +19,14 @@ class EventServerSpec extends Specification with Mockito {
     "distributes a message if it gets a valid one" in new Context {
       val validMessage = Broadcast(542532L, "542532|B")
 
-      eventServer.getEventQueueStatus((validMessage.seqNo - 1L, Map.empty))(validMessage.payload)
+      eventServer.updateEventQueue((validMessage.seqNo - 1L, Map.empty))(validMessage.payload)
       there was one(messageService).sendMessages(validMessage)
     }
 
     "does not distribute a message if it is not a valid one" in new Context {
       val inValidMessage = Broadcast(542532L, "malformedpayload")
 
-      eventServer.getEventQueueStatus((inValidMessage.seqNo - 1L, Map.empty))(inValidMessage.payload)
+      eventServer.updateEventQueue((inValidMessage.seqNo - 1L, Map.empty))(inValidMessage.payload)
       there was no(messageService).sendMessages(inValidMessage)
     }
   }

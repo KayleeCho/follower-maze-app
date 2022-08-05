@@ -3,7 +3,7 @@ package maze.servers
 import java.io.{BufferedReader, InputStreamReader}
 import java.net.ServerSocket
 
-import maze.model.{Message, ParseFailed}
+import maze.model.{Message, ParseError}
 import maze.service.MessagingService
 
 import scala.annotation.tailrec
@@ -12,7 +12,7 @@ class EventServer(messagingService: MessagingService) extends Runnable {
   private val eventPort = 9090
   private val initializedQueueStatus = (0L, Map.empty[Long, Message])
 
-  private type QueueStatus = (Long, Map[Long, Message]) // tuple of lastProcessedSeqNumber and current event queue that contains all current events
+  private type EventQueue = (Long, Map[Long, Message]) // tuple of lastProcessedSeqNumber and current event queue that contains all current events
 
   override def run(): Unit = {
     System.out.println("Listening for events on " + eventPort)
@@ -24,20 +24,21 @@ class EventServer(messagingService: MessagingService) extends Runnable {
     } finally if (eventSocket != null) eventSocket.close()
   }
 
-  private def processEvent(nextEventExist: => Option[String])(currentQueueStatus: QueueStatus): Unit = {
+  private def processEvent(nextEvent: => Option[String])(currentQueueStatus: EventQueue): Unit = {
 
-    nextEventExist match {
-      case Some(payload) => val nextQueueStatus = getEventQueueStatus(currentQueueStatus)(payload)
+    nextEvent match {
+      case Some(payload) => val nextQueueStatus = updateEventQueue(currentQueueStatus)(payload)
         processEvent(_: Option[String])(nextQueueStatus)
       case None => ()
     }
   }
 
-  def getEventQueueStatus(queueStatus: QueueStatus)(
-    payload: String): QueueStatus = {
+  def updateEventQueue(queueStatus: EventQueue)(
+    payload: String): EventQueue = {
     val (lastProcessedSeqNo, hashMapOfSeqAndPayload) = queueStatus
+
     @tailrec
-    def dequeueOnMessageSent(queueState: QueueStatus): QueueStatus = {
+    def dequeueAfterSuccessfulSent(queueState: EventQueue): EventQueue = {
       val (lastProcessedSeqNo, hashMapOfSeqAndPayload) = queueState
       val seqToProcess = lastProcessedSeqNo + 1L
 
@@ -45,24 +46,16 @@ class EventServer(messagingService: MessagingService) extends Runnable {
         case None => queueStatus
         case Some(payload) =>
           messagingService.sendMessages(payload)
-          dequeueOnMessageSent(seqToProcess, hashMapOfSeqAndPayload - (seqToProcess))
+          dequeueAfterSuccessfulSent(seqToProcess, hashMapOfSeqAndPayload - (seqToProcess))
       }
     }
 
-    def ifParseFailed(error: ParseFailed): QueueStatus = {
-      System.out.println("Non parsible Message received: " + error.message)
-      queueStatus
-    }
-
-    def ifValid(message: Message): QueueStatus = {
-      System.out.println("Message received: " + payload)
-      dequeueOnMessageSent(lastProcessedSeqNo,
-        hashMapOfSeqAndPayload + (message.seqNo -> message))
-    }
-
-    Message.parse(payload) match {
-      case Left(error) => ifParseFailed(error)
-      case Right(message) => ifValid(message)
+    Message(payload) match {
+      case Left(error) => System.out.println("Non parsible Message received: " + error.message) //ignores
+        queueStatus
+      case Right(message) =>   System.out.println("Message received: " + payload)
+        dequeueAfterSuccessfulSent(lastProcessedSeqNo,
+          hashMapOfSeqAndPayload + (message.seqNo -> message))
     }
   }
 }

@@ -3,29 +3,35 @@ package maze.registry
 import java.io.{BufferedWriter, OutputStreamWriter}
 import java.net.Socket
 
-import maze.model.{DeadLetterQueue, DeliveryFailed}
+import maze.model.{DeadLetterQueue, DeliveryFailedMessage}
 
 import scala.collection.concurrent.TrieMap
 import scala.util._
 
-class UserRegistry(deadLetterQueue: DeadLetterQueue[DeliveryFailed]) {
+class UserRegistry(deadLetterQueue: DeadLetterQueue[DeliveryFailedMessage]) {
   private val userPool = new TrieMap[Long, Socket]
 
-  def addUser(userId: Long, clientSocket: Socket): Unit = userPool.put(userId, clientSocket)
+  def add(userId: Long, clientSocket: Socket): Unit = userPool.put(userId, clientSocket)
 
   def numberOfUsersOnline: Int = userPool.size
 
   def broadcast(message: String): Unit =
-    userPool.foreach { value =>
-      write(message)(value._2)
-        .foldLeft(deadLetterQueue.enqueue(DeliveryFailed(value._1, message)))(_)
+    userPool.values.foreach { socket =>
+      write(message)(socket) match {
+        case Some(_) => ()
+        case None => deadLetterQueue.enqueue(DeliveryFailedMessage(message))
+      }
     }
 
-  def send(message: String)(whom: Long): Unit =
-    userPool.get(whom).map(write(message)) match {
-      case Some(socket) => socket
-      case None => deadLetterQueue.enqueue(DeliveryFailed(whom,message))
+
+  def send(message: String)(to: Long): Unit = {
+
+    userPool.get(to) match {
+      case Some(socket) => write(message)(socket).getOrElse(deadLetterQueue.enqueue(DeliveryFailedMessage(message)))
+      case None => deadLetterQueue.enqueue(DeliveryFailedMessage(message))
     }
+
+  }
 
 
   private def write(message: String)(socket: Socket): Option[Unit] =

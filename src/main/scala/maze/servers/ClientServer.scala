@@ -6,7 +6,7 @@ import java.net.ServerSocket
 
 import maze.registry.UserRegistry
 
-class ClientReceiver(userHandler: UserRegistry) extends Runnable {
+class ClientServer(userHandler: UserRegistry) extends Runnable {
 
   val clientPort = 9099
 

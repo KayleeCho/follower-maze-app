@@ -8,7 +8,7 @@ import maze.service.MessagingService
 
 import scala.annotation.tailrec
 
-class MessageReceiver(messagingService: MessagingService) extends Runnable {
+class EventServer(messagingService: MessagingService) extends Runnable {
   private val eventPort = 9090
   private val initializedQueueStatus = (0L, Map.empty[Long, Message])
 
@@ -24,12 +24,11 @@ class MessageReceiver(messagingService: MessagingService) extends Runnable {
     } finally if (eventSocket != null) eventSocket.close()
   }
 
-  @tailrec
   private def processEvent(nextEventExist: => Option[String])(currentQueueStatus: QueueStatus): Unit = {
 
     nextEventExist match {
       case Some(payload) => val nextQueueStatus = getEventQueueStatus(currentQueueStatus)(payload)
-        processEvent(_)(nextQueueStatus)
+        processEvent(_: Option[String])(nextQueueStatus)
       case None => ()
     }
   }

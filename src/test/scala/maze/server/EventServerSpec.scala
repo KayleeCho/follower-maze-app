@@ -26,7 +26,8 @@ class EventServerSpec extends Specification with Mockito {
 
   "EventServer" >> {
     "when it is valid message, it sends a message " in new Context {
-      val validMessage = Broadcast(542532L, "542532|B")
+
+      val validMessage = Private(43L, 32L, 56L,"43|P|32|56")
 
       eventServer.updateEventQueue((validMessage.seqNo - 1L, Map.empty))(validMessage.payload)
       there was one(messageService).sendMessages(validMessage)

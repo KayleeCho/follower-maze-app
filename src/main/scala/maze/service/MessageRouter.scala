@@ -12,7 +12,7 @@ class MessageRouter(userHandler: UserRegistry) {
       userHandler.send(payload)(toUserId)
     case Unfollow(_, fromUserId, toUserId, _) =>
       followersRegistry.unfollow(fromUserId, toUserId)
-    case Private(_, toUserId, payload) =>
+    case Private(_, fromUserId, toUserId, payload) =>
       userHandler.send(payload)(toUserId)
     case Broadcast(_, payload) =>
       userHandler.broadcast(payload)

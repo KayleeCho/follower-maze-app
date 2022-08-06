@@ -3,12 +3,12 @@ package maze.servers
 import java.io.{BufferedReader, InputStreamReader}
 import java.net.ServerSocket
 
-import maze.model.{Message, ParseError}
-import maze.service.MessagingService
+import maze.model._
+import maze.service.MessageRouter
 
 import scala.annotation.tailrec
 
-class EventServer(messagingService: MessagingService) extends Runnable {
+class EventServer(messagingService: MessageRouter, deadLetterQueue: DeadLetterQueue[ParseError]) extends Runnable {
   private val eventPort = 9090
   private val initializedQueueStatus = (0L, Map.empty[Long, Message])
 
@@ -33,29 +33,30 @@ class EventServer(messagingService: MessagingService) extends Runnable {
     }
   }
 
-  def updateEventQueue(queueStatus: EventQueue)(
+  def updateEventQueue(currentQueue: EventQueue)(
     payload: String): EventQueue = {
-    val (lastProcessedSeqNo, hashMapOfSeqAndPayload) = queueStatus
+    val (lastProcessedSeqNo, mapOfSeqAndPayload) = currentQueue
 
     @tailrec
-    def dequeueAfterSuccessfulSent(queueState: EventQueue): EventQueue = {
-      val (lastProcessedSeqNo, hashMapOfSeqAndPayload) = queueState
+    def dequeueAfterSuccessfulSent(queueStateInRec: EventQueue): EventQueue = {
+      val (lastProcessedSeqNo, mapOfSeqAndPayload) = queueStateInRec
       val seqToProcess = lastProcessedSeqNo + 1L
 
-      hashMapOfSeqAndPayload.get(seqToProcess) match {
-        case None => queueStatus
+      mapOfSeqAndPayload.get(seqToProcess) match {
+        case None => currentQueue
         case Some(payload) =>
           messagingService.sendMessages(payload)
-          dequeueAfterSuccessfulSent(seqToProcess, hashMapOfSeqAndPayload - (seqToProcess))
+          dequeueAfterSuccessfulSent(seqToProcess, mapOfSeqAndPayload - (seqToProcess))
       }
     }
 
     Message(payload) match {
-      case Left(error) => System.out.println("Non parsible Message received: " + error.message) //ignores
-        queueStatus
+      case Left(error) => System.out.println("Non parsible Message received: " + error.message)
+        deadLetterQueue.enqueue(ParseError(payload))//ignores
+        currentQueue
       case Right(message) =>   System.out.println("Message received: " + payload)
         dequeueAfterSuccessfulSent(lastProcessedSeqNo,
-          hashMapOfSeqAndPayload + (message.seqNo -> message))
+          mapOfSeqAndPayload + (message.seqNo -> message))
     }
   }
 }

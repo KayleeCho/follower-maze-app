@@ -6,6 +6,8 @@ import java.net.ServerSocket
 
 import maze.registry.UserRegistry
 
+import scala.annotation.tailrec
+
 class ClientServer(userHandler: UserRegistry) extends Runnable {
 
   val clientPort = 9099
@@ -17,6 +19,8 @@ class ClientServer(userHandler: UserRegistry) extends Runnable {
 
 
   }
+
+  @tailrec
   private def process(serverSocket: ServerSocket): Unit =
     Option(serverSocket.accept()) match {
       case None => ()

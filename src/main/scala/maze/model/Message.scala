@@ -32,7 +32,3 @@ object Converter {
       case _: NumberFormatException => None
     }
 }
-
-sealed trait MessageError
-
-case class ParseError(message: String) extends MessageError

@@ -3,7 +3,7 @@ package maze.service
 import maze.registry.{FollowersRegistry, UserRegistry}
 import maze.model._
 
-class MessagingService(userHandler: UserRegistry) {
+class MessageRouter(userHandler: UserRegistry) {
   val followersRegistry = new FollowersRegistry
 
   def sendMessages(message: Message): Unit = message match {

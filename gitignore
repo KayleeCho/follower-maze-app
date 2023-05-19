@@ -1,0 +1,6 @@
+.idea/libraries/**
+/target/
+.DS_Store
+.bsp/
+.project
+*.xml

@@ -54,7 +54,7 @@ class EventListener(payloadProcessor: PayloadProcessor, logger: QueueStatusLogge
 
       val currentProcessingSeq = lastProcessedSeq + 1L
       val updatedMap =  updateQueueWithCurrentPayload._2
-      updatedMap.get(currentProcessingSeq) match { // if there was not processed message, process
+      updatedMap.get(currentProcessingSeq) match { // start processing the existing message that is still in the queue
         case None => updateQueueWithCurrentPayload
         case Some(message) => payloadProcessor.process(message)
           dequeAfterProcessing(currentProcessingSeq, updatedMap - (currentProcessingSeq))
